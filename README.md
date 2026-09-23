@@ -1,214 +1,583 @@
-# agentz-setup
+# **AgentZ — First-Time Setup Guide**
 
-For someone opening **AgentZ for the first time**, use this exact setup order:
+## **1. Create a Workspace**
 
-**1. Login to AgentZ → Workspaces → Create Workspace**  
-Create a workspace for the use case. Everything else will be configured under this workspace.
+Go to:
 
-**2. Go to Sandboxes → Create Sandbox**  
-Create/select the execution sandbox. This is where the agent gets its runtime to execute commands and make API calls.
+**Workspaces → Create workspace**
 
-**3. Configure Sandbox packages**  
-Add only what the use case needs. For our API flow:
+Give the workspace a meaningful name and open it.
 
-```
-curl
-jq
-mcporter
-```
+Think of the workspace as the boundary for your AgentZ project. The configuration required by your agents—such as sandboxes, MCP connections, secrets and skills—is managed from here.
 
-`curl` = API calls, `jq` = JSON processing, `mcporter` = MCP tooling.
-
-**4. Configure Network/Allowed Host**  
-Add the backend that the sandbox needs to access.
-
-For our AccuKnox Demo setup:
-
-```
-cspm.demo.accuknox.com
-```
-
-Use the **API/backend host**, not the UI URL.
-
-**5. Go to Secrets → Add Secret**  
-Create the credential required by the API.
-
-```
-Type: Static Secret
-Key: ACCUKNOX_TOKEN
-Value: <your token>
-Host: cspm.demo.accuknox.com
-```
-
-For India we used a separate variable:
-
-```
-ACCUKNOX_TOKEN_IN
-```
-
-**Why:** the token stays securely injected into the runtime instead of being written inside the agent prompt.
-
-**6. Test Sandbox + Secret first**  
-From the sandbox, make one simple authenticated AccuKnox request.
-
-Expected:
-
-```
-HTTP 200
-```
-
-Do **not** create/debug the full agent until this works.
-
-**7. Test the actual API/data source**  
-For our use case, test:
-
-```
-GET https://cspm.demo.accuknox.com/api/v1/findings
-```
-
-Confirm actual findings are returned. This proves:
-
-```
-Sandbox → Network → Secret → AccuKnox API → Data ✓
-```
-
-**8. Go to MCP Connections → Add MCP**  
-Now configure the external tools the agent needs.
-
-For our email flow, create the **Composio MCP** connection.
-
-```
-MCP: Composio
-Status: Ready
-```
-
-Don't continue until the MCP shows **Ready**.
-
-**9. Connect Gmail in Composio**  
-Authorize the Gmail account through Composio/OAuth.
-
-No Gmail password needs to be stored in AgentZ Secrets.
-
-After authorization:
-
-```
-AgentZ → Composio MCP → Gmail ✓
-```
-
-**10. Test Gmail separately**  
-Use the Composio Gmail tool to send one test email.
-
-Confirm the action returns a successful response/message ID.
-
-Now both sides work independently:
-
-```
-AccuKnox API ✓
-Gmail ✓
-```
-
-**11. Go to Agents → Create Agent**  
-Now create the agent and select the workspace/sandbox you configured.
-
-For our setup:
-
-```
-Workspace
-   ↓
-Sandbox
-   ├── AccuKnox Secret
-   └── API access
-
-Agent
-   ├── Sandbox
-   └── Composio MCP
-          └── Gmail
-```
-
-**12. Add Agent Instructions**  
-Tell the agent **what it should do**, not credentials.
-
-Example:
-
-```
-Fetch active AccuKnox findings.
-Analyze and summarize the findings.
-Prepare a security report.
-Send the report using the configured Gmail tool.
-```
-
-**13. Attach/enable required tools**  
-Make sure the agent can access:
-
-```
-Sandbox
-Composio MCP
-Required MCP tools
-```
-
-The secret remains attached/injected through the sandbox configuration.
-
-**14. Open the Agent → Chat/Run**  
-This is where the user actually talks to the configured agent. The Workspace screen in Vanisha's screenshot is the starting/configuration area; she needs to create the resources and then open the configured agent to interact with it. Untitled document (1)
-
-Give a simple test first:
-
-```
-Fetch 5 active findings and summarize them.
-```
-
-If successful, test email:
-
-```
-Fetch 5 active findings, summarize them,
-and email the summary using Gmail.
-```
-
-**15. Only after this works → create Skill/Workflow**  
-Once manual Agent Chat works end-to-end, convert the repeated task into a reusable Skill/Workflow.
-
-### Complete setup flow
-
-```
+```text
 Login
   ↓
 Create Workspace
   ↓
-Create Sandbox
-  ↓
-Add runtime packages
-  ↓
-Allow API/backend host
-  ↓
-Add Secret
-  ↓
-Test authentication
-  ↓
-Test AccuKnox API/data
-  ↓
-Add MCP
-  ↓
-Connect Composio
-  ↓
-Authorize Gmail
-  ↓
-Test Gmail
-  ↓
-Create Agent
-  ↓
-Select Sandbox
-  ↓
-Enable MCP/tools
-  ↓
-Add Agent Instructions
-  ↓
-Open Agent Chat
-  ↓
-Test simple task
-  ↓
-Test complete task
-  ↓
-Create reusable Skill/Workflow
+Open Workspace
 ```
 
-**Rule for a first-time setup:** don't configure everything and test at the end. Validate it layer-by-layer: **Sandbox → Secret → API → MCP → Gmail → Agent → full workflow.** This makes it immediately clear where a failure is occurring.
+---
+
+## **2. Create a Sandbox**
+
+Go to:
+
+**Workspace settings → Sandboxes → New sandbox**
+
+Enter the sandbox name.
+
+Sandbox names must use:
+
+```text
+lowercase letters
+numbers
+hyphens (-)
+
+Maximum: 32 characters
+```
+
+Example:
+
+```text
+security-agent-lab
+```
+
+### **Why is a Sandbox required?**
+
+The Sandbox defines the environment and capabilities that an Agent can use.
+
+During its configuration you can control things such as:
+
+```text
+Packages
+MCP tools
+Inference models
+Allowed network hosts
+```
+
+An Agent is later created using one of these configured Sandboxes.
+
+---
+
+## **3. Configure Sandbox Packages**
+
+Inside the Sandbox, open the **Packages** section.
+
+Select the packages required by your agent.
+
+AgentZ may mark some packages as **Required**. Keep required packages selected.
+
+Additional packages should be selected only when the Agent needs them.
+
+For example:
+
+```text
+curl       → HTTP/API operations
+jq         → JSON processing
+yq         → YAML processing
+grep/sed   → text processing
+```
+
+### **Important**
+
+Do **not** install packages just because another Agent uses them.
+
+Configure the Sandbox according to what the new Agent actually needs.
+
+---
+
+## **4. Configure MCP Connections**
+
+If your Agent needs tools provided by another system, configure an MCP connection.
+
+Go to:
+
+**Workspace settings → MCP connections → Add MCP connection**
+
+Provide:
+
+```text
+Name
+Endpoint
+Authentication
+Additional configuration/headers, if required
+```
+
+The exact authentication method depends on the MCP server. For example, a server may require:
+
+```text
+Bearer token
+
+or
+
+OAuth
+
+or
+
+other connection-specific configuration
+```
+
+Save the connection.
+
+### **Validate it**
+
+Check:
+
+```text
+Status: Ready
+```
+
+and verify that AgentZ discovers the expected tools.
+
+```text
+MCP Server
+    ↓
+Authentication
+    ↓
+Connection Ready
+    ↓
+Tools Discovered
+```
+
+If the connection shows **Error**, resolve the connection/authentication issue before using it with an Agent.
+
+---
+
+## **5. Choose Which MCP Tools the Sandbox Can Expose**
+
+Return to:
+
+**Workspace settings → Sandboxes → your sandbox**
+
+The configured MCP connections can appear in the Sandbox configuration.
+
+For each connection, select the tools that this Sandbox should be allowed to expose to Agents.
+
+For example:
+
+```text
+MCP Connection
+      │
+      ├── Tool A  ✓
+      ├── Tool B  ✓
+      ├── Tool C
+      └── Tool D
+```
+
+Select only the tools required for the Agent.
+
+### **Why?**
+
+There are two separate steps:
+
+```text
+Workspace MCP Connection
+        ↓
+Makes the MCP available to the workspace
+
+Sandbox MCP Tool Selection
+        ↓
+Controls which MCP tools this Sandbox
+may expose to Agents
+```
+
+So creating an MCP connection alone does not mean every tool needs to be available to every Sandbox.
+
+---
+
+## **6. Configure Secrets When Required**
+
+If the Agent or Sandbox needs credentials for an external host, go to:
+
+**Workspace settings → Secrets → New secret**
+
+Provide:
+
+```text
+Secret key/name
+Host or host pattern
+Secret value
+```
+
+Example structure:
+
+```text
+Key:
+SERVICE_API_TOKEN
+
+Host:
+api.example.com
+
+Value:
+<secret-value>
+```
+
+Save it.
+
+The secret value becomes **write-only after it is saved**.
+
+### **Why use Secrets?**
+
+Secrets keep credentials outside Agent instructions and user prompts.
+
+Use:
+
+```text
+Agent/Sandbox
+      ↓
+Secret resolved at runtime
+      ↓
+External service
+```
+
+Instead of:
+
+```text
+Agent prompt
+      ↓
+Hard-coded password/API token   ✗
+```
+
+Use Secrets only when the integration actually requires them.
+
+---
+
+## **7. Configure Allowed Hosts**
+
+In the Sandbox, configure **Allowed hosts** when the Agent needs direct network access to an external host.
+
+Enter an exact domain, IP address, or supported host/CIDR pattern.
+
+Example:
+
+```text
+api.example.com
+```
+
+### **Why?**
+
+This controls the network destinations that the Sandbox is allowed to access directly.
+
+A useful distinction is:
+
+```text
+MCP connection
+→ gives the Agent tools
+
+Secret
+→ provides a credential when required
+
+Allowed host
+→ permits direct network access
+
+Package
+→ provides runtime functionality
+```
+
+They solve different problems and are not interchangeable.
+
+---
+
+## **8. Configure Inference**
+
+In the Sandbox, open **Inference**.
+
+Select the models that should be available to this Sandbox.
+
+Then configure the appropriate model roles exposed by the environment, such as:
+
+```text
+Default model
+→ Used for new sessions and Workflow runs
+
+Capable default model
+→ Optional model for tasks such as images/scanned pages
+
+Lower-cost model
+→ Optional model for lightweight/background tasks
+```
+
+The exact models available depend on the inference providers configured for the workspace/organization.
+
+### **For a basic setup**
+
+Make sure the Sandbox has an appropriate **default model** available.
+
+You don’t need to enable every available model.
+
+---
+
+## **9. Update the Sandbox**
+
+Before creating the Agent, review the Sandbox configuration:
+
+```text
+Sandbox
+   │
+   ├── Packages
+   ├── MCP connections/tools
+   ├── Inference
+   └── Allowed hosts
+```
+
+Then click:
+
+**Update sandbox**
+
+At this point, the execution environment for the Agent is prepared.
+
+---
+
+# **10. Create the Agent**
+
+Now go to:
+
+**General → Agents → New agent**
+
+Provide:
+
+```text
+Agent name
+Sandbox
+```
+
+Select the Sandbox you configured in the previous steps.
+
+The relationship is:
+
+```text
+Agent
+  │
+  └── Sandbox
+       │
+       ├── Packages
+       ├── MCP tools
+       ├── Models
+       └── Network permissions
+```
+
+If the UI provides:
+
+**Allow this Agent to save facts and journal entries across sessions**
+
+enable it only when the Agent needs that persistence across sessions.
+
+Create the Agent.
+
+---
+
+# **11. Start a Session With the Agent**
+
+Open the Agent and start a new session.
+
+Start with a **simple request** that validates one capability.
+
+If you configured an MCP:
+
+```text
+Ask the Agent to perform a simple operation
+using one of the MCP capabilities.
+```
+
+If you configured direct API access:
+
+```text
+Ask it to perform a small/read-only
+operation against that service.
+```
+
+Verify that the expected tool actually executes and returns a result.
+
+---
+
+# **12. Connect External Applications When Required**
+
+Some MCP integrations can provide access to external applications/services.
+
+If the selected integration requires authorization, complete its supported authentication flow.
+
+For an OAuth-based service, the general flow is:
+
+```text
+Agent / MCP
+     ↓
+Request application connection
+     ↓
+OAuth authorization
+     ↓
+User grants permission
+     ↓
+Connection established
+     ↓
+Agent can use permitted application tools
+```
+
+Do not store an application’s username/password in Agent instructions simply to bypass its supported OAuth/integration mechanism.
+
+---
+
+# **13. Test Each Capability Separately**
+
+Before asking the Agent to perform a large task, validate each dependency independently.
+
+Use this order:
+
+```text
+Agent session works
+        ↓
+Model works
+        ↓
+Required MCP tool works
+        ↓
+Required secret/authentication works
+        ↓
+Required network access works
+        ↓
+External application works
+        ↓
+Combined task works
+```
+
+This is important for troubleshooting.
+
+If the complete task fails, you’ll know which layer was already validated.
+
+---
+
+# **14. Add Skills When Needed**
+
+Go to:
+
+**Workspace settings → Skills**
+
+Use Skills when you need reusable instructions/capabilities rather than repeatedly providing the same operational guidance in every session.
+
+Skills are **not a prerequisite for creating your first Agent**.
+
+Start with a working Agent first; add Skills when the behavior needs to become reusable.
+
+---
+
+# **15. Build a Workflow When the Process Is Repeatable**
+
+Once the Agent and its required capabilities work correctly, create a **Workflow** for a repeatable process.
+
+Conceptually:
+
+```text
+Input
+  ↓
+Agent / processing
+  ↓
+Tool or MCP operation
+  ↓
+Additional processing
+  ↓
+Action/output
+```
+
+A Workflow is useful when you want a defined process to run consistently rather than manually instructing the Agent every time.
+
+---
+
+# **16. Add a Trigger Only If Automation Is Required**
+
+If a Workflow needs to start automatically, configure a **Trigger** appropriate to the workflow.
+
+So the progression should generally be:
+
+```text
+Agent works manually
+       ↓
+Workflow works
+       ↓
+Trigger automates it
+```
+
+Don’t make Triggers part of the minimum first-time Agent setup unless automation is actually required.
+
+---
+
+# **Complete Setup Flow**
+
+```text
+                 AGENTZ
+                    │
+                    ▼
+            CREATE WORKSPACE
+                    │
+                    ▼
+           WORKSPACE SETTINGS
+                    │
+          ┌─────────┴─────────┐
+          │                   │
+          ▼                   ▼
+     CREATE SANDBOX      MCP CONNECTIONS
+          │                   │
+          │              Add connection
+          │                   │
+          │              Configure auth
+          │                   │
+          │              Verify READY
+          │                   │
+          │              Verify tools
+          │                   │
+          └─────────┬─────────┘
+                    │
+                    ▼
+             CONFIGURE SANDBOX
+                    │
+          ┌─────────┼──────────┐
+          ▼         ▼          ▼
+       Packages   MCP Tools  Inference
+                              Models
+          │         │          │
+          └─────────┼──────────┘
+                    │
+              Allowed Hosts
+                    │
+                    ▼
+              UPDATE SANDBOX
+                    │
+                    ▼
+          ADD SECRETS IF NEEDED
+                    │
+                    ▼
+          GENERAL → AGENTS
+                    │
+                    ▼
+              CREATE AGENT
+                    │
+              Select Sandbox
+                    │
+                    ▼
+              OPEN AGENT
+                    │
+                    ▼
+             START SESSION
+                    │
+                    ▼
+        TEST ONE CAPABILITY
+                    │
+                    ▼
+       TEST ALL DEPENDENCIES
+                    │
+                    ▼
+        TEST END-TO-END TASK
+                    │
+                    ▼
+              AGENT READY
+                    │
+          ┌─────────┴─────────┐
+          ▼                   ▼
+     Add Skills          Add Workflow
+     if needed            if needed
+                              │
+                              ▼
+                         Add Trigger
+                         if automation
+                         is required
+```
+
